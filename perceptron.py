@@ -107,7 +107,7 @@ class Neuron:
                 self.v.append(0)
                 self.v[combination] = self.summation[combination] + self.bias
                 self.output.append(self.activation_function(self.v[combination]))
-
+            
         print("Weight = " + str(self.weightData))
         print("Bias = " + str(self.bias))
 
@@ -132,11 +132,13 @@ class Layer:
         for neuron in range(0, self.neuronsQty):
             self.neurons.append(Neuron(INPUTDATA, self.activationFunction, self.bias ))
             self.outputData = self.neurons[neuron].output.copy()
+           
     
     def calculate_output(self):
         if self.neuronsQty == 1:
             self.neurons[0].calculate_output()
             self.outputData = self.neurons[0].output.copy()
+            
     
     def training_step(self):
         for neuron in range(0, self.neuronsQty):
@@ -207,10 +209,11 @@ class NeuronalNetwork:
         if self.typeNetwork == "adaline":
             iteration = 0
             layer = Layer(self.inputData, self.desiredOutput, "logistic", "fastforwarding", 1)
+            self.finalOutput = layer.outputData.copy()
             while not self.isDesiredOutput():
                 iteration += 1
                 print( "Ciclo: " + str(iteration) )
-                layer.training_adaline()
+                layer.training_logistic()
                 layer.calculate_output()
                 self.finalOutput = layer.outputData.copy()
                 print(self.finalOutput)
@@ -244,6 +247,6 @@ class NeuronalNetwork:
         pylab.plot(x, formulaPlot, color = "blue")
         pylab.show()
                 
-perceptron = NeuronalNetwork(INPUTDATA, DESIRED_VALUES, ETA, LAYERS, NEURONS, "adaline" )
+perceptron = NeuronalNetwork(INPUTDATA, DESIRED_VALUES, ETA, LAYERS, NEURONS, "perceptron" )
 adaline = NeuronalNetwork(INPUTDATA, DESIRED_VALUES, ETA, LAYERS, NEURONS, "adaline" )
 
