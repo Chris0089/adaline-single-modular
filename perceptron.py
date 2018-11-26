@@ -107,7 +107,6 @@ class Neuron:
                 self.v.append(0)
                 self.v[combination] = self.summation[combination] + self.bias
                 self.output.append(self.activation_function(self.v[combination]))
-            
         print("Weight = " + str(self.weightData))
         print("Bias = " + str(self.bias))
 
@@ -115,30 +114,43 @@ class Layer:
     def __init__(self, inputData, desiredData, actFunc, trainingMtd, neurons):
         self.bias = None
         self.neurons = []
-        self.neuronsQty = None
         self.inputData = inputData.copy()
         self.outputData = None
+        self.outputTransformed = []
         self.desiredOutput = desiredData.copy()
         self.activationFunction = actFunc
         self.training = trainingMtd
         self.neuronsQty = neurons
         self.generate_rand_bias()
         self.create_neurons() 
+        self.error = []
+
 
     def generate_rand_bias(self):
         self.bias = random.uniform(LIMIT_BOTTOM, LIMIT_TOP)
 
     def create_neurons(self):
         for neuron in range(0, self.neuronsQty):
-            self.neurons.append(Neuron(INPUTDATA, self.activationFunction, self.bias ))
+            self.neurons.append(Neuron(self.inputData, self.activationFunction, self.bias ))
             self.outputData = self.neurons[neuron].output.copy()
-           
+        self.calculate_output()
     
     def calculate_output(self):
         if self.neuronsQty == 1:
             self.neurons[0].calculate_output()
             self.outputData = self.neurons[0].output.copy()
-            
+        elif self.neuronsQty > 1 :
+            for neuron in range(0, len(self.neurons)):
+                self.neurons[neuron].calculate_output()
+            outputArray = []
+            print(self.neurons)
+            for val in range(0, len(self.neurons[0].inputData)):
+                outputArray.append([])
+                for neuron in range(0, self.neuronsQty):
+                    outputArray[val].append(self.neurons[neuron].output[val])
+            self.outputData = outputArray.copy()
+            print("data beach")
+            print(self.outputData)
     
     def training_step(self):
         for neuron in range(0, self.neuronsQty):
@@ -161,6 +173,46 @@ class Layer:
                     self.neurons[neuron].bias = self.bias
                     for inputValue in range(0, len(self.inputData[0])):
                         self.neurons[neuron].weightData[inputValue] = self.neurons[neuron].weightData[inputValue] + (ETA * error * self.inputData[out][inputValue]  * self.outputData[out] * (1-self.outputData[out]))
+    
+    def training_logistic_multi(self):
+        for neuron in range(0, self.neuronsQty):
+            for out in range(0, len(self.desiredOutput)):
+                print(out)
+                print(self.outputData)
+                self.bias = self.bias  + (ETA * self.error[out] * self.outputData[out][neuron] * (1-self.outputData[out][neuron]))
+                self.neurons[neuron].bias = self.bias
+                for inputValue in range(0, len(self.inputData[0])):
+                
+
+                    #error bullshit
+                    self.errorBS = []
+                    self.errorBS.append([])
+                    self.errorBS[0].append(self.error[0])
+                    self.errorBS[0].append(self.error[1])
+                    self.errorBS.append([])
+                    self.errorBS[1].append(self.error[2])
+                    self.errorBS[1].append(self.error[3])
+
+                    self.neurons[neuron].weightData[inputValue] = self.neurons[neuron].weightData[inputValue] + (ETA * self.errorBS[neuron][inputValue] * self.inputData[out][inputValue]  * self.outputData[neuron][inputValue] * (1-self.outputData[neuron][inputValue]))
+
+    def updateError(self, error):
+        self.error = []
+        '''
+        if self.neuronsQty == 2:
+            self.error.append([])
+            self.error[0].append(error[0])
+            self.error[0].append(error[1])
+            self.error.append([])
+            self.error[1].append(error[2])
+            self.error[1].append(error[3])
+        else:
+        '''
+        self.error = error.copy()
+        
+    
+    def updateInputs(self, inputData):
+        self.inputData = []
+        self.inputData = inputData.copy()
 
 class NeuronalNetwork:
     def __init__(self, inputData, desiredData, eta, layersQty, neuronsQty, typeNetwork="other"):
@@ -176,6 +228,7 @@ class NeuronalNetwork:
         self.neuronsQty = neuronsQty
         self.typeNetwork = typeNetwork
         self.mainAlgorithm()
+        self.globalError = []
 
     def isDesiredOutput(self):
         if self.typeNetwork == "perceptron":
@@ -183,14 +236,18 @@ class NeuronalNetwork:
                 return True
             else:
                 return False
-        elif self.typeNetwork == "adaline":
+        elif self.typeNetwork == "adaline" or self.typeNetwork == "multilayer":
             for val in range(0, len(self.desiredOutput)):
                 error = abs(self.desiredOutput[val] - self.finalOutput[val])
                 if error > MAXERROR:
                     return False
             return True
+        
+    def calculateGlobalError(self):
+         self.globalError = []
+         for val in range(0, len(self.desiredOutput)):
+            self.globalError.append(self.desiredOutput[val] - self.finalOutput[val])
 
-    
     def mainAlgorithm(self):
         if self.typeNetwork == "perceptron":
             iteration = 0
@@ -221,6 +278,29 @@ class NeuronalNetwork:
                 self.iteration = iteration
             print("finished!!!!!!!!")   
             self.printPlot(layer.neurons[0].weightData[0], layer.neurons[0].weightData[1], layer.neurons[0].bias)
+        if self.typeNetwork == "multilayer":
+            iteration = 0
+            innerLayer = Layer(self.inputData, self.desiredOutput, "logistic", "fastforwarding", 2)
+            lastLayer = Layer(innerLayer.outputData, self.desiredOutput, "logistic", "fastforwarding", 1)
+            self.finalOutput = lastLayer.outputData.copy()
+            while not self.isDesiredOutput():
+                iteration += 1
+                print( "Ciclo: " + str(iteration) )
+                self.calculateGlobalError()
+                print("globalError")
+                print(self.globalError)
+                innerLayer.updateError(self.globalError)
+                print(innerLayer.error)
+                innerLayer.training_logistic_multi()
+                innerLayer.calculate_output()
+                lastLayer.updateInputs(innerLayer.outputData)
+                lastLayer.training_logistic()
+                lastLayer.calculate_output()
+                self.finalOutput = lastLayer.outputData.copy()
+                self.iteration = iteration
+                print(innerLayer.outputData)
+                print(lastLayer.inputData)
+            print("finished!!!!!!!!") 
 
     def printPlot(self, w1, w2, bias):
         minX = min(chain.from_iterable(self.inputData)) - 2
@@ -247,6 +327,8 @@ class NeuronalNetwork:
         pylab.plot(x, formulaPlot, color = "blue")
         pylab.show()
                 
-perceptron = NeuronalNetwork(INPUTDATA, DESIRED_VALUES, ETA, LAYERS, NEURONS, "perceptron" )
-adaline = NeuronalNetwork(INPUTDATA, DESIRED_VALUES, ETA, LAYERS, NEURONS, "adaline" )
+#perceptron = NeuronalNetwork(INPUTDATA, DESIRED_VALUES, ETA, LAYERS, NEURONS, "perceptron" )
+#adaline = NeuronalNetwork(INPUTDATA, DESIRED_VALUES, ETA, LAYERS, NEURONS, "adaline" )
+multilayer = NeuronalNetwork(INPUTDATA, DESIRED_VALUES, ETA, LAYERS, NEURONS, "multilayer" )
+
 
