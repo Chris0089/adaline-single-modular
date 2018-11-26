@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 from itertools import chain
 from user_data import *
 
-
 LIMIT_TOP = 1
 LIMIT_BOTTOM = -1
 ERROR101= "Error 101: No inputs found for a neuron."
@@ -26,17 +25,14 @@ ERROR103 = "Error 103: Not especified activation function."
 
 
 class Neuron:
-    inputData = None
-    inputQuantity = None
-    combinationOfInputs = None
-    weightData = None
-    output = None
-    bias = None
-    summation = None
-    v = None
-    activationFunction = None
-
     def __init__(self, inputs, af, bias):
+        self.inputData = None
+        self.inputQuantity = None
+        self.combinationOfInputs = None
+        self.weightData = None
+        self.output = None
+        self.summation = None
+        self.v = None
         self.activationFunction = af
         self.bias = bias
         self.set_inputs(inputs)
@@ -111,21 +107,17 @@ class Neuron:
                 self.v.append(0)
                 self.v[combination] = self.summation[combination] + self.bias
                 self.output.append(self.activation_function(self.v[combination]))
+
         print("Weight = " + str(self.weightData))
         print("Bias = " + str(self.bias))
 
 class Layer:
-    bias = None
-    neurons = []
-    neuronsQty = None
-    activationFunction = None
-    training  = None
-    inputData = None
-    outputData = None
-    desiredOutput = None
-
     def __init__(self, inputData, desiredData, actFunc, trainingMtd, neurons):
+        self.bias = None
+        self.neurons = []
+        self.neuronsQty = None
         self.inputData = inputData.copy()
+        self.outputData = None
         self.desiredOutput = desiredData.copy()
         self.activationFunction = actFunc
         self.training = trainingMtd
@@ -156,80 +148,102 @@ class Layer:
                     self.neurons[neuron].bias = self.bias
                     for inputValue in range(0, len(self.inputData[0])):
                         self.neurons[neuron].weightData[inputValue] = self.neurons[neuron].weightData[inputValue] + (ETA * error * self.inputData[out][inputValue])
+    
+    def training_logistic(self):
+        for neuron in range(0, self.neuronsQty):
+            for out in range(0, len(self.desiredOutput)):
+                error = 0.0
+                error = self.desiredOutput[out] - self.outputData[out]
+                if abs(error) > MAXERROR:
+                    self.bias = self.bias  + (ETA * error * self.outputData[out] * (1-self.outputData[out]))
+                    self.neurons[neuron].bias = self.bias
+                    for inputValue in range(0, len(self.inputData[0])):
+                        self.neurons[neuron].weightData[inputValue] = self.neurons[neuron].weightData[inputValue] + (ETA * error * self.inputData[out][inputValue]  * self.outputData[out] * (1-self.outputData[out]))
 
 class NeuronalNetwork:
-    inputData = []
-    desiredOutput = []
-    eta = None
-    layers = []
-    layersQty = None
-    neuronsQty = None
-    finalOutput = []
-    finalWeights = []
-    typeNetwork = None
-
     def __init__(self, inputData, desiredData, eta, layersQty, neuronsQty, typeNetwork="other"):
+        self.finalOutput = []
+        self.finalWeights = []
+        self.iteration = 0
         self.inputData = inputData.copy()
+        self.desiredOutput = []
         self.desiredOutput = desiredData.copy()
         self.eta = eta
+        self.layers = []
         self.layersQty = layersQty
         self.neuronsQty = neuronsQty
         self.typeNetwork = typeNetwork
         self.mainAlgorithm()
 
     def isDesiredOutput(self):
-        if self.desiredOutput == self.finalOutput:
+        if self.typeNetwork == "perceptron":
+            if self.desiredOutput == self.finalOutput:
+                return True
+            else:
+                return False
+        elif self.typeNetwork == "adaline":
+            for val in range(0, len(self.desiredOutput)):
+                error = abs(self.desiredOutput[val] - self.finalOutput[val])
+                if error > MAXERROR:
+                    return False
             return True
-        else:
-            return False
+
     
     def mainAlgorithm(self):
         if self.typeNetwork == "perceptron":
-            for col in range(0, len(self.desiredOutput)):
-                iteration = 0
-                self.finalOutput.append([])
-                layer = Layer(self.inputData, self.desiredOutput[col], "step", "fastforwarding", 1)
-                while not self.isDesiredOutput():
-                    iteration += 1
-                    print( "Ciclo: " + str(iteration) )
-                    layer.training_step()
-                    layer.calculate_output()
-                    self.finalOutput[col] = layer.outputData.copy()
-                    print(self.finalOutput)
-                    print(self.desiredOutput[0])
-                print("finished!!!!!!!!")
-                self.printPlot(layer.neurons[0].weightData[0], layer.neurons[0].weightData[1], layer.neurons[0].bias)
+            iteration = 0
+            layer = Layer(self.inputData, self.desiredOutput, "step", "fastforwarding", 1)
+            while not self.isDesiredOutput():
+                iteration += 1
+                print( "Ciclo: " + str(iteration) )
+                layer.training_step()
+                layer.calculate_output()
+                self.finalOutput = layer.outputData.copy()
+                print(self.finalOutput)
+                print(self.desiredOutput[0])
+                self.iteration = iteration
+            print("finished!!!!!!!!")   
+            self.printPlot(layer.neurons[0].weightData[0], layer.neurons[0].weightData[1], layer.neurons[0].bias)
+        if self.typeNetwork == "adaline":
+            iteration = 0
+            layer = Layer(self.inputData, self.desiredOutput, "logistic", "fastforwarding", 1)
+            while not self.isDesiredOutput():
+                iteration += 1
+                print( "Ciclo: " + str(iteration) )
+                layer.training_adaline()
+                layer.calculate_output()
+                self.finalOutput = layer.outputData.copy()
+                print(self.finalOutput)
+                print(self.desiredOutput[0])
+                self.iteration = iteration
+            print("finished!!!!!!!!")   
+            self.printPlot(layer.neurons[0].weightData[0], layer.neurons[0].weightData[1], layer.neurons[0].bias)
 
     def printPlot(self, w1, w2, bias):
-        for column in range(0, len(self.finalOutput)):
-            #x2 = (self.bias[column] / self.weightData[column][1] - self.weightData[column][0]/ self.weightData[column][1] * self.inputData[0][0])
-            minX = min(chain.from_iterable(self.inputData)) - 2
-            maxX = max(chain.from_iterable(self.inputData)) + 2
-            x = np.linspace(minX, maxX, 4)
-            formulaPlot = (-1 * bias / w2) - (w1 / w2 * x)
-            if self.desiredOutput[column][0] == 0:
-                plt.plot(0,0, 'x', color = 'red')
-            else:
-                plt.plot(0,0, 'ro', color = 'green')
-            if self.desiredOutput[column][1] == 0:
-                plt.plot(0,1, 'x', color = 'red')
-            else:
-                plt.plot(0,1, 'ro', color = 'green')
-            if self.desiredOutput[column][2] == 0:
-                plt.plot(1,0, 'x', color = 'red')
-            else:
-                plt.plot(1,0, 'ro', color = 'green')
-            if self.desiredOutput[column][3] == 0 :
-                plt.plot(1,1, 'x', color = 'red')
-            else:
-                plt.plot(1,1, 'ro', color = 'green')
-            pylab.plot(x, formulaPlot, color = "blue")
-            pylab.show()
+        minX = min(chain.from_iterable(self.inputData)) - 2
+        maxX = max(chain.from_iterable(self.inputData)) + 2
+        x = np.linspace(minX, maxX, 4)
+        formulaPlot = (-1 * bias / w2) - (w1 / w2 * x)
+        if self.desiredOutput[0] == 0:
+            plt.plot(0,0, 'x', color = 'red')
+        else:
+            plt.plot(0,0, 'ro', color = 'green')
+        if self.desiredOutput[1] == 0:
+            plt.plot(0,1, 'x', color = 'red')
+        else:
+            plt.plot(0,1, 'ro', color = 'green')
+        if self.desiredOutput[2] == 0:
+            plt.plot(1,0, 'x', color = 'red')
+        else:
+            plt.plot(1,0, 'ro', color = 'green')
+        if self.desiredOutput[3] == 0 :
+            plt.plot(1,1, 'x', color = 'red')
+        else:
+            plt.plot(1,1, 'ro', color = 'green')
+        plt.suptitle(str(self.typeNetwork) + ". " + str(self.iteration) + " iteraciones.")
+        pylab.plot(x, formulaPlot, color = "blue")
+        pylab.show()
                 
+perceptron = NeuronalNetwork(INPUTDATA, DESIRED_VALUES, ETA, LAYERS, NEURONS, "adaline" )
+adaline = NeuronalNetwork(INPUTDATA, DESIRED_VALUES, ETA, LAYERS, NEURONS, "adaline" )
 
-'''
-pancho = Neuron(1, AF)
-mencho = Neuron([2,3], AF)
-mincho = Neuron([[2,3,4],[2,0,1]], AF)
-'''
-perceptron = NeuronalNetwork(INPUTDATA, DESIRED_VALUES, ETA, LAYERS, NEURONS, "perceptron" )
