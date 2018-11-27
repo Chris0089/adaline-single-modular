@@ -11,10 +11,10 @@ Training methods available:
 '''
 
 INPUTDATA = [[0,0],[0,1],[1,0],[1,1]]
-DESIRED_VALUES = [0,0,0,1]
+DESIRED_VALUES = [1,0,0,1]
 LAYERS = 1
 NEURONS = 1
-ETA = 0.2 
+ETA = 0.4 
 AF = "step"
 TM = "fast-forward"
-MAXERROR = 0.1
+MAXERROR = 0.4

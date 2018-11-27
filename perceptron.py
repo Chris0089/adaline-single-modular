@@ -1,13 +1,17 @@
 '''
-Perceptron OOP
+Neuronal Networks Algorithm
+
+Neuron availables:
+    Perceptron
+    Adaline
 
 Activation functions available:
     step
     logistic
 
 Training methods available:
-    fast-forwarding (pending)
-    backpropagation (pending)
+    feedforward
+    backpropagation
 '''
 import sys
 import random
@@ -16,6 +20,7 @@ import pylab
 import matplotlib.pyplot as plt
 from itertools import chain
 from user_data import *
+import time
 
 LIMIT_TOP = 1
 LIMIT_BOTTOM = -1
@@ -107,8 +112,8 @@ class Neuron:
                 self.v.append(0)
                 self.v[combination] = self.summation[combination] + self.bias
                 self.output.append(self.activation_function(self.v[combination]))
-        print("Weight = " + str(self.weightData))
-        print("Bias = " + str(self.bias))
+        #print("Weight = " + str(self.weightData))
+        #print("Bias = " + str(self.bias))
 
 class Layer:
     def __init__(self, inputData, desiredData, actFunc, trainingMtd, neurons):
@@ -177,14 +182,9 @@ class Layer:
     def training_logistic_multi(self):
         for neuron in range(0, self.neuronsQty):
             for out in range(0, len(self.desiredOutput)):
-                print(out)
-                print(self.outputData)
                 self.bias = self.bias  + (ETA * self.error[out] * self.outputData[out][neuron] * (1-self.outputData[out][neuron]))
                 self.neurons[neuron].bias = self.bias
                 for inputValue in range(0, len(self.inputData[0])):
-                
-
-                    #error bullshit
                     self.errorBS = []
                     self.errorBS.append([])
                     self.errorBS[0].append(self.error[0])
@@ -192,30 +192,19 @@ class Layer:
                     self.errorBS.append([])
                     self.errorBS[1].append(self.error[2])
                     self.errorBS[1].append(self.error[3])
-
                     self.neurons[neuron].weightData[inputValue] = self.neurons[neuron].weightData[inputValue] + (ETA * self.errorBS[neuron][inputValue] * self.inputData[out][inputValue]  * self.outputData[neuron][inputValue] * (1-self.outputData[neuron][inputValue]))
 
     def updateError(self, error):
         self.error = []
-        '''
-        if self.neuronsQty == 2:
-            self.error.append([])
-            self.error[0].append(error[0])
-            self.error[0].append(error[1])
-            self.error.append([])
-            self.error[1].append(error[2])
-            self.error[1].append(error[3])
-        else:
-        '''
         self.error = error.copy()
-        
-    
+
     def updateInputs(self, inputData):
         self.inputData = []
         self.inputData = inputData.copy()
 
 class NeuronalNetwork:
-    def __init__(self, inputData, desiredData, eta, layersQty, neuronsQty, typeNetwork="other"):
+    def __init__(self, inputData, desiredData, eta, layersQty, neuronsQty, typeNetwork="other", training = "NA", logicGate="NA"):
+        self.train= training
         self.finalOutput = []
         self.finalWeights = []
         self.iteration = 0
@@ -227,9 +216,13 @@ class NeuronalNetwork:
         self.layersQty = layersQty
         self.neuronsQty = neuronsQty
         self.typeNetwork = typeNetwork
+        self.w1 = None
+        self.w2 = None
+        self.bias = None
+        self.logicGate = logicGate
         self.mainAlgorithm()
         self.globalError = []
-
+        
     def isDesiredOutput(self):
         if self.typeNetwork == "perceptron":
             if self.desiredOutput == self.finalOutput:
@@ -261,8 +254,24 @@ class NeuronalNetwork:
                 print(self.finalOutput)
                 print(self.desiredOutput[0])
                 self.iteration = iteration
-            print("finished!!!!!!!!")   
-            self.printPlot(layer.neurons[0].weightData[0], layer.neurons[0].weightData[1], layer.neurons[0].bias)
+                self.w1 = layer.neurons[0].weightData[0]
+                self.w2 = layer.neurons[0].weightData[1]
+                self.bias = layer.bias
+            print("finished!!!!!!!!")
+            if self.train == "NA":   
+               self.printPlot(layer.neurons[0].weightData[0], layer.neurons[0].weightData[1], layer.neurons[0].bias)
+        if self.typeNetwork == "multi":
+            iteration = 0
+            layer = Layer(self.inputData, self.desiredOutput, "step", "fastforwarding", 1)
+            while not self.isDesiredOutput():
+                iteration += 1
+                print( "Ciclo: " + str(iteration) )
+                layer.training_step()
+                layer.calculate_output()
+                self.finalOutput = layer.outputData.copy()
+                print(self.finalOutput)
+                print(self.desiredOutput[0])
+                self.iteration = iteration
         if self.typeNetwork == "adaline":
             iteration = 0
             layer = Layer(self.inputData, self.desiredOutput, "logistic", "fastforwarding", 1)
@@ -276,21 +285,27 @@ class NeuronalNetwork:
                 print(self.finalOutput)
                 print(self.desiredOutput[0])
                 self.iteration = iteration
-            print("finished!!!!!!!!")   
-            self.printPlot(layer.neurons[0].weightData[0], layer.neurons[0].weightData[1], layer.neurons[0].bias)
+                self.w1 = layer.neurons[0].weightData[0]
+                self.w2 = layer.neurons[0].weightData[1]
+                self.bias = layer.bias
+            print("finished!!!!!!!!")
+            if self.train == "NA":   
+               self.printPlot(layer.neurons[0].weightData[0], layer.neurons[0].weightData[1], layer.neurons[0].bias)
         if self.typeNetwork == "multilayer":
             iteration = 0
             innerLayer = Layer(self.inputData, self.desiredOutput, "logistic", "fastforwarding", 2)
             lastLayer = Layer(innerLayer.outputData, self.desiredOutput, "logistic", "fastforwarding", 1)
             self.finalOutput = lastLayer.outputData.copy()
             while not self.isDesiredOutput():
+                #time.sleep(.001)
                 iteration += 1
                 print( "Ciclo: " + str(iteration) )
-                self.calculateGlobalError()
-                print("globalError")
-                print(self.globalError)
+                print("Inner Neuron 1:" + str(innerLayer.neurons[0].weightData))
+                print("Inner Neuron 2:" + str(innerLayer.neurons[1].weightData))
+                print("Last Neuron:" + str(lastLayer.neurons[0].weightData))
+                self.calculateGlobalError()                
+                print("Global error:" + str(self.globalError))
                 innerLayer.updateError(self.globalError)
-                print(innerLayer.error)
                 innerLayer.training_logistic_multi()
                 innerLayer.calculate_output()
                 lastLayer.updateInputs(innerLayer.outputData)
@@ -298,8 +313,6 @@ class NeuronalNetwork:
                 lastLayer.calculate_output()
                 self.finalOutput = lastLayer.outputData.copy()
                 self.iteration = iteration
-                print(innerLayer.outputData)
-                print(lastLayer.inputData)
             print("finished!!!!!!!!") 
 
     def printPlot(self, w1, w2, bias):
@@ -323,12 +336,58 @@ class NeuronalNetwork:
             plt.plot(1,1, 'x', color = 'red')
         else:
             plt.plot(1,1, 'ro', color = 'green')
-        plt.suptitle(str(self.typeNetwork) + ". " + str(self.iteration) + " iteraciones.")
+        plt.suptitle(str(self.typeNetwork) + " " +str(self.logicGate)+ " " + str(self.iteration) + " iteraciones.")
         pylab.plot(x, formulaPlot, color = "blue")
         pylab.show()
                 
-#perceptron = NeuronalNetwork(INPUTDATA, DESIRED_VALUES, ETA, LAYERS, NEURONS, "perceptron" )
-#adaline = NeuronalNetwork(INPUTDATA, DESIRED_VALUES, ETA, LAYERS, NEURONS, "adaline" )
-multilayer = NeuronalNetwork(INPUTDATA, DESIRED_VALUES, ETA, LAYERS, NEURONS, "multilayer" )
+xorMulti = NeuronalNetwork(INPUTDATA, [0,1,0,0], ETA, LAYERS, NEURONS, "perceptron", "multi" )
+xorMulti2 = NeuronalNetwork(INPUTDATA, [0,0,1,0], ETA, LAYERS, NEURONS, "perceptron", "multi" )
+xnorMulti = NeuronalNetwork(INPUTDATA, [0,0,0,1], ETA, LAYERS, NEURONS, "perceptron", "multi" )
+xnorMulti2 = NeuronalNetwork(INPUTDATA, [1,0,0,0], ETA, LAYERS, NEURONS, "perceptron", "multi" )
+xorBack = NeuronalNetwork(INPUTDATA, [0,1,0,0], ETA, LAYERS, NEURONS, "adaline", "backpropagation" )
+xorBack2 = NeuronalNetwork(INPUTDATA, [0,0,1,0], ETA, LAYERS, NEURONS, "adaline", "backpropagation" )
+xnorBack = NeuronalNetwork(INPUTDATA, [1,0,0,0], ETA, LAYERS, NEURONS, "adaline", "backpropagation" )
+xnorBack2 = NeuronalNetwork(INPUTDATA, [0,0,0,1], ETA, LAYERS, NEURONS, "adaline", "backpropagation" )
 
+def XNORPlot(title, w1, w2, bias, w3, w4, bias2 ):
+        minX = min(chain.from_iterable(INPUTDATA)) - 2
+        maxX = max(chain.from_iterable(INPUTDATA)) + 2
+        x = np.linspace(minX, maxX, 4)
+        formulaPlot1 = (-1 * bias / w2) - (w1 / w2 * x)
+        formulaPlot2 = (-1 * bias2 / w4) - (w3 / w4 * x)
+        plt.plot(0,0, 'ro', color = 'green')
+        plt.plot(0,1, 'x', color = 'red')
+        plt.plot(1,0, 'x', color = 'red')
+        plt.plot(1,1, 'ro', color = 'green')
+        plt.suptitle(str(title))
+        pylab.plot(x, formulaPlot1, color = "blue")
+        pylab.plot(x, formulaPlot2, color = "blue")
+        pylab.show()
 
+def XORPlot(title, w1, w2, bias, w3, w4, bias2 ):
+        minX = min(chain.from_iterable(INPUTDATA)) - 2
+        maxX = max(chain.from_iterable(INPUTDATA)) + 2
+        x = np.linspace(minX, maxX, 4)
+        formulaPlot1 = (-1 * bias / w2) - (w1 / w2 * x)
+        formulaPlot2 = (-1 * bias2 / w4) - (w3 / w4 * x)
+        plt.plot(0,0, 'x', color = 'red')
+        plt.plot(0,1, 'ro', color = 'green')
+        plt.plot(1,0, 'ro', color = 'green')
+        plt.plot(1,1, 'x', color = 'red')
+        plt.suptitle(str(title))
+        pylab.plot(x, formulaPlot1, color = "blue")
+        pylab.plot(x, formulaPlot2, color = "blue")
+        pylab.show()
+
+perceptronAND = NeuronalNetwork(INPUTDATA, [0,0,0,1], ETA, LAYERS, NEURONS, "perceptron", "NA", "AND" )
+adalineAND = NeuronalNetwork(INPUTDATA, [0,0,0,1], ETA, LAYERS, NEURONS, "adaline", "NA", "AND" )
+perceptronOR = NeuronalNetwork(INPUTDATA, [0,1,1,1], ETA, LAYERS, NEURONS, "perceptron", "NA", "OR" )
+adalineOR = NeuronalNetwork(INPUTDATA, [0,1,1,1], ETA, LAYERS, NEURONS, "adaline", "NA", "OR" )
+perceptronNAND = NeuronalNetwork(INPUTDATA, [1,1,1,0], ETA, LAYERS, NEURONS, "perceptron", "NA", "NAND" )
+adalinenAND = NeuronalNetwork(INPUTDATA, [1,1,1,0], ETA, LAYERS, NEURONS, "adaline", "NA", "NAND" )
+perceptronNOR = NeuronalNetwork(INPUTDATA, [1,0,0,0], ETA, LAYERS, NEURONS, "perceptron", "NA", "NOR" )
+adalineNOR = NeuronalNetwork(INPUTDATA, [1,0,0,0], ETA, LAYERS, NEURONS, "adaline", "NA", "NOR" )
+XORPlot("Multilayer XOR", xorMulti.w1, xorMulti.w2, xorMulti.bias, xorMulti2.w1, xorMulti2.w2, xorMulti2.bias)
+XNORPlot("Multilayer XNOR", xnorMulti.w1, xnorMulti.w2, xnorMulti.bias, xnorMulti2.w1, xnorMulti2.w2, xnorMulti2.bias)
+XORPlot("Backpropagation XOR", xorBack.w1, xorBack.w2, xorBack.bias, xorBack2.w1, xorBack2.w2, xorBack2.bias)
+XNORPlot("Backpropagation XNOR", xnorBack.w1, xnorBack.w2, xnorBack.bias, xnorBack2.w1, xnorBack2.w2, xnorBack2.bias)
